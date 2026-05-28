@@ -35,3 +35,9 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 # pmrt-admin-panel
+
+## Profile sync (Expo → API → Supabase)
+
+1. Run `supabase/profiles.sql` in the Supabase SQL Editor.
+2. Copy `.env.example` → add `SUPABASE_SERVICE_ROLE_KEY` and `FIREBASE_API_KEY` on Vercel.
+3. Redeploy. Expo app calls `POST /api/sync-profile` after Firebase login.

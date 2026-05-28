@@ -67,8 +67,6 @@ export default async function Home() {
           >
             Documentation
           </a>
-
-          <p>Hello World</p>
         </div>
       </main>
     </div>
