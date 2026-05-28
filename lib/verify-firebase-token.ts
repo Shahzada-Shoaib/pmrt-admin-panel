@@ -1,3 +1,7 @@
+// Unused while sync-profile accepts profile fields directly (no idToken verify).
+// Re-enable import in app/api/sync-profile/route.ts when you want token verification again.
+
+/*
 type FirebaseLookupUser = {
   localId: string;
   email?: string;
@@ -46,3 +50,6 @@ export async function verifyFirebaseIdToken(
     avatar_url: user.photoUrl ?? null,
   };
 }
+*/
+
+export {};

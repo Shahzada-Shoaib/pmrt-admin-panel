@@ -39,5 +39,5 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Profile sync (Expo → API → Supabase)
 
 1. Run `supabase/profiles.sql` in the Supabase SQL Editor.
-2. Copy `.env.example` → add `SUPABASE_SERVICE_ROLE_KEY` and `FIREBASE_API_KEY` on Vercel.
-3. Redeploy. Expo app calls `POST /api/sync-profile` after Firebase login.
+2. Copy `.env.example` → add `SUPABASE_SERVICE_ROLE_KEY` on Vercel (and `.env.local` for local dev).
+3. Redeploy. Expo app calls `POST /api/sync-profile` with `{ firebase_uid, email, full_name, avatar_url }` after login.

@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseIdToken } from "@/lib/verify-firebase-token";
+// import { verifyFirebaseIdToken } from "@/lib/verify-firebase-token";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+};
+
+type SyncProfileBody = {
+  firebase_uid?: string;
+  email?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
 };
 
 export async function OPTIONS() {
@@ -22,9 +29,9 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { idToken?: string };
+  let body: SyncProfileBody;
   try {
-    body = await request.json();``
+    body = await request.json();
   } catch {
     return NextResponse.json(
       { error: "Invalid JSON body." },
@@ -32,29 +39,37 @@ export async function POST(request: Request) {
     );
   }
 
-  const idToken = body.idToken;
-  if (!idToken) {
+  const firebaseUid = body.firebase_uid?.trim();
+  if (!firebaseUid) {
     return NextResponse.json(
-      { error: "idToken is required." },
+      { error: "firebase_uid is required." },
       { status: 400, headers: corsHeaders },
     );
   }
 
-  const firebaseUser = await verifyFirebaseIdToken(idToken);
-  if (!firebaseUser) {
-    return NextResponse.json(
-      { error: "Invalid or expired Firebase token." },
-      { status: 401, headers: corsHeaders },
-    );
-  }
+  // --- Previous idToken + Firebase verify flow (disabled) ---
+  // const idToken = body.idToken;
+  // if (!idToken) {
+  //   return NextResponse.json(
+  //     { error: "idToken is required." },
+  //     { status: 400, headers: corsHeaders },
+  //   );
+  // }
+  // const firebaseUser = await verifyFirebaseIdToken(idToken);
+  // if (!firebaseUser) {
+  //   return NextResponse.json(
+  //     { error: "Invalid or expired Firebase token." },
+  //     { status: 401, headers: corsHeaders },
+  //   );
+  // }
 
   const now = new Date().toISOString();
   const { error } = await supabase.from("profiles").upsert(
     {
-      firebase_uid: firebaseUser.firebase_uid,
-      email: firebaseUser.email,
-      full_name: firebaseUser.full_name,
-      avatar_url: firebaseUser.avatar_url,
+      firebase_uid: firebaseUid,
+      email: body.email ?? null,
+      full_name: body.full_name ?? null,
+      avatar_url: body.avatar_url ?? null,
       role: "student",
       updated_at: now,
     },
