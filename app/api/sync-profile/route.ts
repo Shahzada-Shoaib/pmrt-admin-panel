@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 
 // import { verifyFirebaseIdToken } from "@/lib/verify-firebase-token";
+import { corsHeaders } from "@/lib/api-cors";
 import { createAdminClient } from "@/lib/supabase-admin";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
 
 type SyncProfileBody = {
   firebase_uid?: string;

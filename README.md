@@ -39,5 +39,17 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Profile sync (Expo → API → Supabase)
 
 1. Run `supabase/profiles.sql` in the Supabase SQL Editor.
-2. Copy `.env.example` → add `SUPABASE_SERVICE_ROLE_KEY` on Vercel (and `.env.local` for local dev).
-3. Redeploy. Expo app calls `POST /api/sync-profile` with `{ firebase_uid, email, full_name, avatar_url }` after login.
+2. Run `supabase/courses.sql` for All Courses in the mobile app.
+3. Run `supabase/storage.sql` for image/video uploads in the admin UI.
+3. Copy `.env.example` → add `SUPABASE_SERVICE_ROLE_KEY` on Vercel (and `.env.local` for local dev).
+4. Redeploy. Expo uses:
+   - `POST /api/sync-profile` after login
+   - `GET /api/courses` and `GET /api/courses/:id` for course screens
+
+## Admin UI
+
+Open `/admin` after `npm run dev`:
+
+- **Dashboard** — overview
+- **Courses** — list, create, edit, lessons (video/material URLs)
+- Toggle **Published** so the mobile app shows a course
