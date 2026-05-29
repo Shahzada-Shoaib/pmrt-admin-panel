@@ -1,10 +1,22 @@
 import Link from "next/link";
 
 import { fetchAllCoursesAdmin } from "@/lib/courses-admin";
+import { fetchAllFreeVideosAdmin } from "@/lib/free-videos-admin";
+import { fetchAllStudyMaterialsAdmin } from "@/lib/study-materials-admin";
+import { fetchAllProfilesAdmin } from "@/lib/users-admin";
 
 export default async function AdminDashboardPage() {
-  const courses = (await fetchAllCoursesAdmin()) ?? [];
-  const published = courses.filter((c) => c.is_published).length;
+  const [courses, freeVideos, studyMaterials, users] = await Promise.all([
+    fetchAllCoursesAdmin(),
+    fetchAllFreeVideosAdmin(),
+    fetchAllStudyMaterialsAdmin(),
+    fetchAllProfilesAdmin(),
+  ]);
+  const courseList = courses ?? [];
+  const videoList = freeVideos ?? [];
+  const materialList = studyMaterials ?? [];
+  const userList = users ?? [];
+  const published = courseList.filter((c) => c.is_published).length;
 
   return (
     <>
@@ -15,11 +27,11 @@ export default async function AdminDashboardPage() {
         </h2>
       </header>
       <main className="flex-1 p-8">
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
             <p className="text-sm font-medium text-[var(--muted)]">Total courses</p>
             <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-              {courses.length}
+              {courseList.length}
             </p>
           </div>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
@@ -29,8 +41,22 @@ export default async function AdminDashboardPage() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
             <p className="text-sm font-medium text-[var(--muted)]">Draft</p>
             <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-              {courses.length - published}
+              {courseList.length - published}
             </p>
+          </div>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+            <p className="text-sm font-medium text-[var(--muted)]">Free videos</p>
+            <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{videoList.length}</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+            <p className="text-sm font-medium text-[var(--muted)]">Study materials</p>
+            <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
+              {materialList.length}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+            <p className="text-sm font-medium text-[var(--muted)]">Registered users</p>
+            <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{userList.length}</p>
           </div>
         </div>
 
@@ -51,6 +77,24 @@ export default async function AdminDashboardPage() {
               className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-slate-50"
             >
               Manage courses
+            </Link>
+            <Link
+              href="/admin/free-videos"
+              className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-slate-50"
+            >
+              Free videos
+            </Link>
+            <Link
+              href="/admin/study-materials"
+              className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-slate-50"
+            >
+              Study materials
+            </Link>
+            <Link
+              href="/admin/users"
+              className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-slate-50"
+            >
+              Manage users
             </Link>
           </div>
         </div>

@@ -42,3 +42,19 @@ textarea,
 select {
   font-family: inherit;
 }
+
+/* Center modal dialogs in the viewport (not at top of page flow) */
+.admin-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  max-height: min(90vh, 800px);
+  transform: translate(-50%, -50%);
+  border: none;
+}
+
+.admin-modal::backdrop {
+  background: rgb(15 23 42 / 0.45);
+  backdrop-filter: blur(2px);
+}

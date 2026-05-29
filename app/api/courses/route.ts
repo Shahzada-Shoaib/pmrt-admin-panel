@@ -1,12 +1,14 @@
 import { corsHeaders, jsonResponse } from "@/lib/api-cors";
 import { fetchPublishedCourses } from "@/lib/courses";
+import { getFirebaseUidFromRequest } from "@/lib/verify-firebase-token";
 
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-export async function GET() {
-  const courses = await fetchPublishedCourses();
+export async function GET(request: Request) {
+  const firebaseUid = await getFirebaseUidFromRequest(request);
+  const courses = await fetchPublishedCourses(firebaseUid);
 
   if (!courses) {
     return jsonResponse(

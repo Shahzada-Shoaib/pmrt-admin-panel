@@ -1,7 +1,3 @@
-// Unused while sync-profile accepts profile fields directly (no idToken verify).
-// Re-enable import in app/api/sync-profile/route.ts when you want token verification again.
-
-/*
 type FirebaseLookupUser = {
   localId: string;
   email?: string;
@@ -21,6 +17,7 @@ export async function verifyFirebaseIdToken(
 ): Promise<VerifiedFirebaseUser | null> {
   const apiKey = process.env.FIREBASE_API_KEY;
   if (!apiKey) {
+    console.warn("FIREBASE_API_KEY not set — cannot verify tokens.");
     return null;
   }
 
@@ -50,6 +47,20 @@ export async function verifyFirebaseIdToken(
     avatar_url: user.photoUrl ?? null,
   };
 }
-*/
 
-export {};
+export async function getFirebaseUidFromRequest(
+  request: Request,
+): Promise<string | null> {
+  const header = request.headers.get("Authorization");
+  if (!header?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const idToken = header.slice("Bearer ".length).trim();
+  if (!idToken) {
+    return null;
+  }
+
+  const verified = await verifyFirebaseIdToken(idToken);
+  return verified?.firebase_uid ?? null;
+}

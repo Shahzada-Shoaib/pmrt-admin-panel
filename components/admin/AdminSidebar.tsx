@@ -6,6 +6,9 @@ import { usePathname } from "next/navigation";
 const links = [
   { href: "/admin", label: "Dashboard", icon: "◉" },
   { href: "/admin/courses", label: "Courses", icon: "▣" },
+  { href: "/admin/free-videos", label: "Free Videos", icon: "▶" },
+  { href: "/admin/study-materials", label: "Free Study Material", icon: "◇" },
+  { href: "/admin/users", label: "Users", icon: "◎" },
 ];
 
 export function AdminSidebar() {
@@ -45,7 +48,7 @@ export function AdminSidebar() {
         })}
       </nav>
       <div className="border-t border-white/10 p-4 text-xs text-[var(--sidebar-muted)]">
-        Mobile app reads published courses via API.
+        Mobile: courses, free videos, and study materials APIs.
       </div>
     </aside>
   );

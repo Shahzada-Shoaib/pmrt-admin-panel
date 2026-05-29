@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { CourseEditor } from "@/components/admin/CourseEditor";
+import { LessonManager } from "@/components/admin/LessonManager";
 import { fetchCourseAdminFull } from "@/lib/courses-admin";
 
 type PageProps = {
@@ -23,15 +24,21 @@ export default async function EditCoursePage({ params }: PageProps) {
         <h2 className="mt-1 text-2xl font-bold tracking-tight">{course.title}</h2>
       </header>
       <main className="flex-1 p-8">
-        <CourseEditor
-          mode="edit"
-          courseId={id}
-          initial={{
-            ...course,
-            isPublished: course.isPublished,
-            sortOrder: course.sortOrder,
-          }}
-        />
+        <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+          <CourseEditor
+            mode="edit"
+            courseId={id}
+            detailsOnly
+            initial={{
+              ...course,
+              isPublished: course.isPublished,
+              sortOrder: course.sortOrder,
+            }}
+          />
+          <div className="lg:sticky lg:top-8">
+            <LessonManager courseId={id} lessons={course.lessons} />
+          </div>
+        </div>
       </main>
     </>
   );

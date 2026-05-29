@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { LessonManager } from "@/components/admin/LessonManager";
+import { AdminModal } from "@/components/admin/ui/AdminModal";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
+import { FormField, inputClass, labelClass } from "@/components/admin/ui/FormField";
 import type { CourseDto } from "@/lib/courses";
 
 function slugify(value: string) {
@@ -20,11 +23,13 @@ type CourseEditorProps = {
   mode: "create" | "edit";
   courseId?: string;
   initial?: CourseDto & { isPublished?: boolean; sortOrder?: number };
+  /** When true, only course details card (lessons rendered separately on edit page). */
+  detailsOnly?: boolean;
 };
 
 const levels = ["Beginner", "Intermediate", "Advanced"];
 
-export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
+export function CourseEditor({ mode, courseId, initial, detailsOnly = false }: CourseEditorProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +48,8 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
   const [isPublished, setIsPublished] = useState(initial?.isPublished ?? false);
   const [sortOrder, setSortOrder] = useState(initial?.sortOrder ?? 0);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
+  const [confirmDeleteCourse, setConfirmDeleteCourse] = useState(false);
 
   const buildPayload = () => ({
     id: slugify(id.trim() || title.trim()),
@@ -133,7 +140,6 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
 
   const handleDelete = async () => {
     if (mode !== "edit" || !courseId) return;
-    if (!confirm("Delete this course and all lessons?")) return;
 
     setSaving(true);
     setError(null);
@@ -151,12 +157,12 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed.");
       setSaving(false);
+      setConfirmDeleteCourse(false);
     }
   };
 
-  const inputClass =
-    "mt-1.5 w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20";
-  const labelClass = "text-sm font-semibold text-[var(--foreground)]";
+  const thumbnailPreview =
+    thumbnail && !thumbnail.startsWith("data:") ? thumbnail : null;
 
   return (
     <div className="space-y-8">
@@ -179,22 +185,21 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
 
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
           {mode === "create" ? (
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Course ID (slug)</label>
+            <FormField
+              label="Course ID (slug)"
+              className="sm:col-span-2"
+              hint="Auto-generated from title. Use lowercase letters, numbers, and hyphens only."
+            >
               <input
                 className={inputClass}
                 value={id}
                 onChange={(e) => setId(slugify(e.target.value))}
                 placeholder="professional-android-repair"
               />
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Auto-generated from title. Use lowercase letters, numbers, and hyphens only.
-              </p>
-            </div>
+            </FormField>
           ) : null}
 
-          <div className="sm:col-span-2">
-            <label className={labelClass}>Title</label>
+          <FormField label="Title" className="sm:col-span-2">
             <input
               className={inputClass}
               value={title}
@@ -207,19 +212,17 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
               }}
               placeholder="Professional Android Repair Program"
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className={labelClass}>Instructor</label>
+          <FormField label="Instructor">
             <input
               className={inputClass}
               value={instructor}
               onChange={(e) => setInstructor(e.target.value)}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className={labelClass}>Level</label>
+          <FormField label="Level">
             <select
               className={inputClass}
               value={level}
@@ -231,87 +234,73 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
 
-          <div>
-            <label className={labelClass}>Duration label</label>
+          <FormField label="Duration label">
             <input
               className={inputClass}
               value={durationLabel}
               onChange={(e) => setDurationLabel(e.target.value)}
               placeholder="8h 30m"
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className={labelClass}>Sort order</label>
+          <FormField label="Sort order">
             <input
               type="number"
               className={inputClass}
               value={sortOrder}
               onChange={(e) => setSortOrder(Number(e.target.value))}
             />
-          </div>
+          </FormField>
 
           <div className="sm:col-span-2">
-            <label className={labelClass}>Course thumbnail</label>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Upload an image (recommended) or paste a public https:// link. Do not paste long
-              base64 text — the mobile app needs a normal URL.
-            </p>
-            {thumbnail && !thumbnail.startsWith("data:") ? (
-              <img
-                src={thumbnail}
-                alt="Thumbnail preview"
-                className="mt-3 h-32 w-48 rounded-xl border border-[var(--border)] object-cover"
-              />
-            ) : null}
+            <span className={labelClass}>Course thumbnail</span>
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              {thumbnailPreview ? (
+                <img
+                  src={thumbnailPreview}
+                  alt="Thumbnail preview"
+                  className="h-24 w-36 rounded-xl border border-[var(--border)] object-cover"
+                />
+              ) : (
+                <div className="flex h-24 w-36 items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-slate-50 text-xs text-[var(--muted)]">
+                  No image
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setThumbnailModalOpen(true)}
+                className="rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50"
+              >
+                Change thumbnail
+              </button>
+            </div>
             {thumbnail.startsWith("data:") ? (
               <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Current value is base64. Clear the field and upload again, or use an https URL.
+                Current value is base64. Open Change thumbnail to fix.
               </p>
             ) : null}
-            <div className="mt-3 flex flex-wrap gap-3">
-              <label className="inline-flex cursor-pointer items-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
-                {uploadingThumbnail ? "Uploading…" : "Upload image"}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  disabled={uploadingThumbnail}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void uploadThumbnail(file);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-            <input
-              className={`${inputClass} mt-3`}
-              value={thumbnail.startsWith("data:") ? "" : thumbnail}
-              onChange={(e) => setThumbnail(e.target.value)}
-              placeholder="https://... (optional if you uploaded)"
-            />
           </div>
 
-          <div className="sm:col-span-2">
-            <label className={labelClass}>Description</label>
+          <FormField label="Description" className="sm:col-span-2">
             <textarea
               className={`${inputClass} min-h-[120px] resize-y`}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-          </div>
+          </FormField>
 
-          <div className="sm:col-span-2">
-            <label className={labelClass}>Learning outcomes (one per line)</label>
+          <FormField
+            label="Learning outcomes (one per line)"
+            className="sm:col-span-2"
+          >
             <textarea
               className={`${inputClass} min-h-[100px] resize-y`}
               value={objectivesText}
               onChange={(e) => setObjectivesText(e.target.value)}
             />
-          </div>
+          </FormField>
 
           <div className="sm:col-span-2">
             <label className="flex cursor-pointer items-center gap-3">
@@ -345,7 +334,7 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
             <button
               type="button"
               disabled={saving}
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteCourse(true)}
               className="ml-auto rounded-xl border border-red-200 bg-red-50 px-5 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
             >
               Delete course
@@ -354,9 +343,66 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
         </div>
       </section>
 
-      {mode === "edit" && courseId && initial ? (
+      {mode === "edit" && courseId && initial && !detailsOnly ? (
         <LessonManager courseId={courseId} lessons={initial.lessons} />
       ) : null}
+
+      <AdminModal
+        open={thumbnailModalOpen}
+        onClose={() => setThumbnailModalOpen(false)}
+        title="Course thumbnail"
+        description="Upload an image or paste a public https:// link. Do not paste base64."
+        footer={
+          <button
+            type="button"
+            onClick={() => setThumbnailModalOpen(false)}
+            className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)]"
+          >
+            Done
+          </button>
+        }
+      >
+        {thumbnailPreview ? (
+          <img
+            src={thumbnailPreview}
+            alt="Thumbnail preview"
+            className="mb-4 h-40 w-full max-w-sm rounded-xl border border-[var(--border)] object-cover"
+          />
+        ) : null}
+        <label className="mb-4 inline-flex cursor-pointer items-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
+          {uploadingThumbnail ? "Uploading…" : "Upload image"}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            disabled={uploadingThumbnail}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void uploadThumbnail(file);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        <FormField label="Image URL" hint="Optional if you uploaded above.">
+          <input
+            className={inputClass}
+            value={thumbnail.startsWith("data:") ? "" : thumbnail}
+            onChange={(e) => setThumbnail(e.target.value)}
+            placeholder="https://..."
+          />
+        </FormField>
+      </AdminModal>
+
+      <ConfirmDialog
+        open={confirmDeleteCourse}
+        title="Delete course?"
+        message="Delete this course and all lessons? This cannot be undone."
+        confirmLabel="Delete course"
+        variant="danger"
+        loading={saving}
+        onCancel={() => setConfirmDeleteCourse(false)}
+        onConfirm={() => void handleDelete()}
+      />
     </div>
   );
 }

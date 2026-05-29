@@ -1,3 +1,4 @@
+import { getProfileIdByFirebaseUid, getUnlockedCourseIdsForProfile } from "@/lib/course-access";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 export type LessonItemDto = {
@@ -29,7 +30,33 @@ export type CourseDto = {
   level: string;
   objectives: string[];
   lessons: CourseLessonDto[];
+  isUnlocked: boolean;
 };
+
+export function stripMediaUrls(course: CourseDto): CourseDto {
+  return {
+    ...course,
+    isUnlocked: false,
+    lessons: course.lessons.map((lesson) => ({
+      ...lesson,
+      items: lesson.items.map((item) => {
+        const stripped: LessonItemDto = {
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          description: item.description,
+        };
+        if (item.duration) {
+          stripped.duration = item.duration;
+        }
+        if (item.materialFormat) {
+          stripped.materialFormat = item.materialFormat;
+        }
+        return stripped;
+      }),
+    })),
+  };
+}
 
 type CourseRow = {
   id: string;
@@ -115,6 +142,7 @@ function mapCourse(
   row: CourseRow,
   lessonRows: LessonRow[] = [],
   itemRows: ItemRow[] = [],
+  isUnlocked = false,
 ): CourseDto {
   const lessons = mapLessons(
     [...lessonRows].sort((a, b) => a.sort_order - b.sort_order),
@@ -132,6 +160,7 @@ function mapCourse(
     level: row.level,
     objectives: row.objectives ?? [],
     lessons,
+    isUnlocked,
   };
 }
 
@@ -160,7 +189,9 @@ async function fetchLessonItemsForCourse(
   return (data ?? []) as ItemRow[];
 }
 
-export async function fetchPublishedCourses(): Promise<CourseDto[] | null> {
+export async function fetchPublishedCourses(
+  firebaseUid?: string | null,
+): Promise<CourseDto[] | null> {
   const supabase = createAdminClient();
   if (!supabase) {
     return null;
@@ -179,10 +210,23 @@ export async function fetchPublishedCourses(): Promise<CourseDto[] | null> {
     return null;
   }
 
-  return (data as CourseRow[]).map((row) => mapCourse(row));
+  let unlockedIds = new Set<string>();
+  if (firebaseUid) {
+    const profileId = await getProfileIdByFirebaseUid(firebaseUid);
+    if (profileId) {
+      unlockedIds = await getUnlockedCourseIdsForProfile(profileId);
+    }
+  }
+
+  return (data as CourseRow[]).map((row) =>
+    mapCourse(row, [], [], unlockedIds.has(row.id)),
+  );
 }
 
-export async function fetchCourseById(courseId: string): Promise<CourseDto | null> {
+export async function fetchCourseById(
+  courseId: string,
+  firebaseUid?: string | null,
+): Promise<CourseDto | null> {
   const supabase = createAdminClient();
   if (!supabase) {
     return null;
@@ -220,7 +264,17 @@ export async function fetchCourseById(courseId: string): Promise<CourseDto | nul
     lessonRows.map((l) => l.id),
   );
 
-  return mapCourse(course as CourseRow, lessonRows, itemRows);
+  let isUnlocked = false;
+  if (firebaseUid) {
+    const profileId = await getProfileIdByFirebaseUid(firebaseUid);
+    if (profileId) {
+      const unlockedIds = await getUnlockedCourseIdsForProfile(profileId);
+      isUnlocked = unlockedIds.has(courseId);
+    }
+  }
+
+  const full = mapCourse(course as CourseRow, lessonRows, itemRows, isUnlocked);
+  return isUnlocked ? full : stripMediaUrls(full);
 }
 
 export async function fetchCourseLessonsWithItems(

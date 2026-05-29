@@ -155,6 +155,7 @@ export async function fetchCourseAdminFull(
     level: row.level,
     objectives: row.objectives ?? [],
     lessons,
+    isUnlocked: true,
     isPublished: row.is_published,
     sortOrder: row.sort_order,
   };

@@ -3,30 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import {
+  LessonContainerForm,
+  type LessonFormState,
+} from "@/components/admin/forms/LessonContainerForm";
+import { LessonItemForm, type ItemFormState } from "@/components/admin/forms/LessonItemForm";
+import { AdminModal } from "@/components/admin/ui/AdminModal";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { CourseLessonDto, LessonItemDto } from "@/lib/courses";
 
 type LessonManagerProps = {
   courseId: string;
   lessons: CourseLessonDto[];
-};
-
-type LessonFormState = {
-  id: string;
-  sort_order: number;
-  title: string;
-  description: string;
-};
-
-type ItemFormState = {
-  id: string;
-  sort_order: number;
-  type: "video" | "material";
-  title: string;
-  description: string;
-  duration: string;
-  video_url: string;
-  material_url: string;
-  material_format: "image" | "pdf";
 };
 
 function emptyLesson(sortOrder: number): LessonFormState {
@@ -52,26 +40,27 @@ function emptyItem(sortOrder: number): ItemFormState {
   };
 }
 
+type ConfirmState =
+  | { type: "lesson"; id: string }
+  | { type: "item"; id: string }
+  | null;
+
 export function LessonManager({ courseId, lessons }: LessonManagerProps) {
   const router = useRouter();
-  const [expandedLessonId, setExpandedLessonId] = useState<string | null>(
-    lessons[0]?.id ?? null,
-  );
+
+  const [lessonModal, setLessonModal] = useState<"create" | "edit" | null>(null);
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [lessonForm, setLessonForm] = useState<LessonFormState>(emptyLesson(lessons.length + 1));
-  const [showLessonForm, setShowLessonForm] = useState(false);
 
+  const [itemModal, setItemModal] = useState<"create" | "edit" | null>(null);
   const [activeLessonIdForItem, setActiveLessonIdForItem] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemForm, setItemForm] = useState<ItemFormState>(emptyItem(1));
-  const [showItemForm, setShowItemForm] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const inputClass =
-    "mt-1.5 w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20";
-  const labelClass = "text-sm font-semibold";
+  const [confirm, setConfirm] = useState<ConfirmState>(null);
 
   const uploadFile = async (file: File, folder: string) => {
     const formData = new FormData();
@@ -85,10 +74,23 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
     return data.url as string;
   };
 
+  const closeLessonModal = () => {
+    setLessonModal(null);
+    setEditingLessonId(null);
+    setError(null);
+  };
+
+  const closeItemModal = () => {
+    setItemModal(null);
+    setEditingItemId(null);
+    setActiveLessonIdForItem(null);
+    setError(null);
+  };
+
   const startNewLesson = () => {
     setEditingLessonId(null);
     setLessonForm(emptyLesson(lessons.length + 1));
-    setShowLessonForm(true);
+    setLessonModal("create");
     setError(null);
   };
 
@@ -100,7 +102,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       title: lesson.title,
       description: lesson.description,
     });
-    setShowLessonForm(true);
+    setLessonModal("edit");
     setError(null);
   };
 
@@ -116,7 +118,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
     };
 
     try {
-      const isNew = !editingLessonId;
+      const isNew = lessonModal === "create";
       const url = isNew
         ? `/api/admin/courses/${courseId}/lessons`
         : `/api/admin/lessons/${editingLessonId}`;
@@ -132,11 +134,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
         throw new Error(data.error ?? "Could not save lesson.");
       }
 
-      setShowLessonForm(false);
-      setEditingLessonId(null);
-      if (isNew && data.id) {
-        setExpandedLessonId(data.id);
-      }
+      closeLessonModal();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
@@ -146,7 +144,6 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
   };
 
   const removeLesson = async (lessonId: string) => {
-    if (!confirm("Delete this lesson and all its videos/materials?")) return;
     setSaving(true);
     setError(null);
 
@@ -156,7 +153,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       if (!response.ok) {
         throw new Error(data.error ?? "Could not delete lesson.");
       }
-      if (expandedLessonId === lessonId) setExpandedLessonId(null);
+      setConfirm(null);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed.");
@@ -169,8 +166,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
     setActiveLessonIdForItem(lesson.id);
     setEditingItemId(null);
     setItemForm(emptyItem(lesson.items.length + 1));
-    setShowItemForm(true);
-    setExpandedLessonId(lesson.id);
+    setItemModal("create");
     setError(null);
   };
 
@@ -188,8 +184,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       material_url: item.materialUrl ?? "",
       material_format: item.materialFormat === "image" ? "image" : "pdf",
     });
-    setShowItemForm(true);
-    setExpandedLessonId(lessonId);
+    setItemModal("edit");
     setError(null);
   };
 
@@ -217,7 +212,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
     };
 
     try {
-      const isNew = !editingItemId;
+      const isNew = itemModal === "create";
       const url = isNew
         ? `/api/admin/lessons/${activeLessonIdForItem}/items`
         : `/api/admin/lesson-items/${editingItemId}`;
@@ -233,8 +228,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
         throw new Error(data.error ?? "Could not save item.");
       }
 
-      setShowItemForm(false);
-      setEditingItemId(null);
+      closeItemModal();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
@@ -244,7 +238,6 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
   };
 
   const removeItem = async (itemId: string) => {
-    if (!confirm("Delete this video/material?")) return;
     setSaving(true);
     setError(null);
 
@@ -255,9 +248,9 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
         throw new Error(data.error ?? "Could not delete item.");
       }
       if (editingItemId === itemId) {
-        setShowItemForm(false);
-        setEditingItemId(null);
+        closeItemModal();
       }
+      setConfirm(null);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed.");
@@ -265,6 +258,50 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       setSaving(false);
     }
   };
+
+  const activeLessonTitle = lessons.find((l) => l.id === activeLessonIdForItem)?.title;
+
+  const lessonModalFooter = (
+    <>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={closeLessonModal}
+        className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={saveLesson}
+        className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-60"
+      >
+        {saving ? "Saving…" : lessonModal === "edit" ? "Update lesson" : "Add lesson"}
+      </button>
+    </>
+  );
+
+  const itemModalFooter = (
+    <>
+      <button
+        type="button"
+        disabled={saving || uploadingMedia}
+        onClick={closeItemModal}
+        className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        disabled={saving || uploadingMedia}
+        onClick={saveItem}
+        className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-60"
+      >
+        {saving ? "Saving…" : itemModal === "edit" ? "Update item" : "Add item"}
+      </button>
+    </>
+  );
 
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
@@ -284,7 +321,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
         </button>
       </div>
 
-      {error ? (
+      {error && !lessonModal && !itemModal ? (
         <p className="mt-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
       ) : null}
 
@@ -295,7 +332,6 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       ) : (
         <ul className="mt-6 space-y-4">
           {lessons.map((lesson, lessonIndex) => {
-            const expanded = expandedLessonId === lesson.id;
             const videoCount = lesson.items.filter((i) => i.type === "video").length;
             const materialCount = lesson.items.filter((i) => i.type === "material").length;
 
@@ -304,21 +340,19 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
                 key={lesson.id}
                 className="overflow-hidden rounded-xl border border-[var(--border)] bg-white"
               >
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedLessonId(expanded ? null : lesson.id)}
-                    className="min-w-0 flex-1 text-left"
-                  >
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-slate-50/50 px-4 py-3">
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold">
                       {lessonIndex + 1}. {lesson.title}
                     </p>
                     <p className="text-xs text-[var(--muted)]">
                       {videoCount} video{videoCount === 1 ? "" : "s"} · {materialCount} material
                       {materialCount === 1 ? "" : "s"}
-                      {lesson.description ? ` · ${lesson.description.slice(0, 60)}` : ""}
                     </p>
-                  </button>
+                    {lesson.description ? (
+                      <p className="mt-1 text-xs text-[var(--muted)]">{lesson.description}</p>
+                    ) : null}
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -336,7 +370,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeLesson(lesson.id)}
+                      onClick={() => setConfirm({ type: "lesson", id: lesson.id })}
                       className="text-sm font-semibold text-red-600"
                     >
                       Delete
@@ -344,278 +378,141 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
                   </div>
                 </div>
 
-                {expanded ? (
-                  <div className="border-t border-[var(--border)] bg-slate-50/60 px-4 py-3">
-                    {lesson.items.length === 0 ? (
-                      <p className="text-sm text-[var(--muted)]">
-                        No videos or materials in this lesson yet.
-                      </p>
-                    ) : (
-                      <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)] bg-white">
-                        {lesson.items.map((item, itemIndex) => (
-                          <li
-                            key={item.id}
-                            className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-                          >
-                            <div>
-                              <p className="text-sm font-medium">
-                                {itemIndex + 1}. {item.title}
-                              </p>
-                              <p className="text-xs text-[var(--muted)]">
-                                {item.type}
-                                {item.type === "video" && item.duration
-                                  ? ` · ${item.duration}`
-                                  : ""}
-                              </p>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => startEditItem(lesson.id, item, itemIndex)}
-                                className="text-xs font-semibold text-[var(--primary)]"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => removeItem(item.id)}
-                                className="text-xs font-semibold text-red-600"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ) : null}
+                <div className="px-4 py-3">
+                  {lesson.items.length === 0 ? (
+                    <p className="text-sm text-[var(--muted)]">
+                      No videos or materials yet. Click + Item to add content.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+                      {lesson.items.map((item, itemIndex) => (
+                        <li
+                          key={item.id}
+                          className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 hover:bg-slate-50/80"
+                        >
+                          <div>
+                            <p className="text-sm font-medium">
+                              {itemIndex + 1}. {item.title}
+                            </p>
+                            <p className="text-xs text-[var(--muted)]">
+                              {item.type}
+                              {item.type === "video" && item.duration
+                                ? ` · ${item.duration}`
+                                : ""}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => startEditItem(lesson.id, item, itemIndex)}
+                              className="text-xs font-semibold text-[var(--primary)]"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirm({ type: "item", id: item.id })}
+                              className="text-xs font-semibold text-red-600"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </li>
             );
           })}
         </ul>
       )}
 
-      {showLessonForm ? (
-        <div className="mt-8 rounded-xl border border-dashed border-[var(--border)] bg-slate-50/50 p-5">
-          <h4 className="font-semibold">{editingLessonId ? "Edit lesson" : "New lesson"}</h4>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>Sort order</label>
-              <input
-                type="number"
-                className={inputClass}
-                value={lessonForm.sort_order}
-                onChange={(e) =>
-                  setLessonForm((f) => ({ ...f, sort_order: Number(e.target.value) }))
-                }
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Lesson title</label>
-              <input
-                className={inputClass}
-                value={lessonForm.title}
-                onChange={(e) => setLessonForm((f) => ({ ...f, title: e.target.value }))}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Lesson description</label>
-              <textarea
-                className={`${inputClass} min-h-[80px]`}
-                value={lessonForm.description}
-                onChange={(e) => setLessonForm((f) => ({ ...f, description: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={saveLesson}
-              className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-60"
-            >
-              {saving ? "Saving…" : editingLessonId ? "Update lesson" : "Add lesson"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowLessonForm(false)}
-              className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <AdminModal
+        open={lessonModal !== null}
+        onClose={closeLessonModal}
+        title={lessonModal === "edit" ? "Edit lesson" : "New lesson"}
+        description="A lesson groups videos and study materials in the mobile app."
+        footer={lessonModalFooter}
+      >
+        {error && lessonModal ? (
+          <p className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+        ) : null}
+        <LessonContainerForm value={lessonForm} onChange={setLessonForm} />
+      </AdminModal>
 
-      {showItemForm && activeLessonIdForItem ? (
-        <div className="mt-6 rounded-xl border border-dashed border-[var(--primary)]/40 bg-teal-50/30 p-5">
-          <h4 className="font-semibold">
-            {editingItemId ? "Edit video / material" : "Add video or material"}
-          </h4>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Inside lesson: {lessons.find((l) => l.id === activeLessonIdForItem)?.title}
-          </p>
+      <AdminModal
+        open={itemModal !== null}
+        onClose={closeItemModal}
+        title={itemModal === "edit" ? "Edit video / material" : "Add video or material"}
+        description={
+          activeLessonTitle ? `Inside lesson: ${activeLessonTitle}` : undefined
+        }
+        size="lg"
+        footer={itemModalFooter}
+      >
+        {error && itemModal ? (
+          <p className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+        ) : null}
+        <LessonItemForm
+          value={itemForm}
+          onChange={setItemForm}
+          uploading={uploadingMedia}
+          onUploadVideo={(file) => {
+            setUploadingMedia(true);
+            setError(null);
+            void uploadFile(file, "videos")
+              .then((url) => setItemForm((f) => ({ ...f, video_url: url })))
+              .catch((err) =>
+                setError(err instanceof Error ? err.message : "Upload failed."),
+              )
+              .finally(() => setUploadingMedia(false));
+          }}
+          onUploadMaterial={(file) => {
+            setUploadingMedia(true);
+            setError(null);
+            const format = file.type.includes("pdf") ? "pdf" : "image";
+            void uploadFile(file, "materials")
+              .then((url) =>
+                setItemForm((f) => ({
+                  ...f,
+                  material_url: url,
+                  material_format: format,
+                })),
+              )
+              .catch((err) =>
+                setError(err instanceof Error ? err.message : "Upload failed."),
+              )
+              .finally(() => setUploadingMedia(false));
+          }}
+        />
+      </AdminModal>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>Type</label>
-              <select
-                className={inputClass}
-                value={itemForm.type}
-                onChange={(e) =>
-                  setItemForm((f) => ({
-                    ...f,
-                    type: e.target.value as "video" | "material",
-                  }))
-                }
-              >
-                <option value="video">Video</option>
-                <option value="material">Study material (PDF / image)</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Sort order</label>
-              <input
-                type="number"
-                className={inputClass}
-                value={itemForm.sort_order}
-                onChange={(e) =>
-                  setItemForm((f) => ({ ...f, sort_order: Number(e.target.value) }))
-                }
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Title</label>
-              <input
-                className={inputClass}
-                value={itemForm.title}
-                onChange={(e) => setItemForm((f) => ({ ...f, title: e.target.value }))}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Description</label>
-              <textarea
-                className={`${inputClass} min-h-[72px]`}
-                value={itemForm.description}
-                onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))}
-              />
-            </div>
+      <ConfirmDialog
+        open={confirm?.type === "lesson"}
+        title="Delete lesson?"
+        message="Delete this lesson and all its videos and study materials? This cannot be undone."
+        confirmLabel="Delete lesson"
+        variant="danger"
+        loading={saving}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => {
+          if (confirm?.type === "lesson") void removeLesson(confirm.id);
+        }}
+      />
 
-            {itemForm.type === "video" ? (
-              <>
-                <div>
-                  <label className={labelClass}>Duration</label>
-                  <input
-                    className={inputClass}
-                    value={itemForm.duration}
-                    onChange={(e) => setItemForm((f) => ({ ...f, duration: e.target.value }))}
-                    placeholder="18 min"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Video URL</label>
-                  <label className="mt-1 inline-flex cursor-pointer rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-semibold hover:bg-slate-50">
-                    Upload video
-                    <input
-                      type="file"
-                      accept="video/mp4,video/webm"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        void uploadFile(file, "videos")
-                          .then((url) => setItemForm((f) => ({ ...f, video_url: url })))
-                          .catch((err) =>
-                            setError(err instanceof Error ? err.message : "Upload failed."),
-                          );
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                  <input
-                    className={inputClass}
-                    value={itemForm.video_url}
-                    onChange={(e) => setItemForm((f) => ({ ...f, video_url: e.target.value }))}
-                    placeholder="https://..."
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className={labelClass}>Format</label>
-                  <select
-                    className={inputClass}
-                    value={itemForm.material_format}
-                    onChange={(e) =>
-                      setItemForm((f) => ({
-                        ...f,
-                        material_format: e.target.value as "image" | "pdf",
-                      }))
-                    }
-                  >
-                    <option value="pdf">PDF</option>
-                    <option value="image">Image</option>
-                  </select>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Material URL</label>
-                  <label className="mt-1 inline-flex cursor-pointer rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-semibold hover:bg-slate-50">
-                    Upload file
-                    <input
-                      type="file"
-                      accept="application/pdf,image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const format = file.type.includes("pdf") ? "pdf" : "image";
-                        void uploadFile(file, "materials")
-                          .then((url) =>
-                            setItemForm((f) => ({
-                              ...f,
-                              material_url: url,
-                              material_format: format,
-                            })),
-                          )
-                          .catch((err) =>
-                            setError(err instanceof Error ? err.message : "Upload failed."),
-                          );
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                  <input
-                    className={inputClass}
-                    value={itemForm.material_url}
-                    onChange={(e) => setItemForm((f) => ({ ...f, material_url: e.target.value }))}
-                    placeholder="https://..."
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={saveItem}
-              className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-60"
-            >
-              {saving ? "Saving…" : editingItemId ? "Update item" : "Add item"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowItemForm(false)}
-              className="rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmDialog
+        open={confirm?.type === "item"}
+        title="Delete item?"
+        message="Delete this video or study material?"
+        confirmLabel="Delete"
+        variant="danger"
+        loading={saving}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => {
+          if (confirm?.type === "item") void removeItem(confirm.id);
+        }}
+      />
     </section>
   );
 }
