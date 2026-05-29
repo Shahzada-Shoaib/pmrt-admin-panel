@@ -7,7 +7,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
-  const firebaseUid = await getFirebaseUidFromRequest(request);
+  const firebaseUid = getFirebaseUidFromRequest(request);
   const courses = await fetchPublishedCourses(firebaseUid);
 
   if (!courses) {

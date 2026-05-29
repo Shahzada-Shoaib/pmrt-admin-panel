@@ -12,7 +12,7 @@ export async function OPTIONS() {
 
 export async function GET(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const firebaseUid = await getFirebaseUidFromRequest(request);
+  const firebaseUid = getFirebaseUidFromRequest(request);
   const course = await fetchCourseById(id, firebaseUid);
 
   if (!course) {
