@@ -1,8 +1,8 @@
 import { corsHeaders, jsonResponse } from "@/lib/api-cors";
 import {
-  deleteLessonContainer,
-  updateLessonContainer,
-  type LessonContainerInput,
+  createLessonItem,
+  slugifyTitle,
+  type LessonItemInput,
 } from "@/lib/courses-admin";
 
 type RouteContext = { params: Promise<{ lessonId: string }> };
@@ -11,9 +11,9 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-export async function PATCH(request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
   const { lessonId } = await context.params;
-  let body: Partial<LessonContainerInput>;
+  let body: Partial<LessonItemInput>;
   try {
     body = await request.json();
   } catch {
@@ -25,26 +25,24 @@ export async function PATCH(request: Request, context: RouteContext) {
     return jsonResponse({ error: "title is required." }, 400);
   }
 
-  const input: LessonContainerInput = {
-    id: lessonId,
+  const type = body.type === "material" ? "material" : "video";
+  const input: LessonItemInput = {
+    id: body.id?.trim() || `${slugifyTitle(title)}-${Date.now()}`,
     sort_order: typeof body.sort_order === "number" ? body.sort_order : 0,
+    type,
     title,
     description: body.description?.trim() || "",
+    duration: body.duration ?? null,
+    video_url: type === "video" ? body.video_url ?? null : null,
+    material_url: type === "material" ? body.material_url ?? null : null,
+    material_format:
+      type === "material" ? (body.material_format === "pdf" ? "pdf" : "image") : null,
   };
 
-  const result = await updateLessonContainer(lessonId, input);
+  const result = await createLessonItem(lessonId, input);
   if (result.error) {
     return jsonResponse({ error: result.error }, 500);
   }
 
-  return jsonResponse({ ok: true });
-}
-
-export async function DELETE(_request: Request, context: RouteContext) {
-  const { lessonId } = await context.params;
-  const result = await deleteLessonContainer(lessonId);
-  if (result.error) {
-    return jsonResponse({ error: result.error }, 500);
-  }
-  return jsonResponse({ ok: true });
+  return jsonResponse({ ok: true, id: input.id }, 201);
 }

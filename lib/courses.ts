@@ -1,14 +1,21 @@
 import { createAdminClient } from "@/lib/supabase-admin";
 
-export type CourseContentDto = {
+export type LessonItemDto = {
   id: string;
   title: string;
   type: "video" | "material";
-  duration?: string;
   description: string;
+  duration?: string;
   videoUrl?: string;
   materialUrl?: string;
   materialFormat?: "image" | "pdf";
+};
+
+export type CourseLessonDto = {
+  id: string;
+  title: string;
+  description: string;
+  items: LessonItemDto[];
 };
 
 export type CourseDto = {
@@ -21,7 +28,7 @@ export type CourseDto = {
   lessonCount: number;
   level: string;
   objectives: string[];
-  content: CourseContentDto[];
+  lessons: CourseLessonDto[];
 };
 
 type CourseRow = {
@@ -40,6 +47,14 @@ type LessonRow = {
   id: string;
   course_id: string;
   sort_order: number;
+  title: string;
+  description: string;
+};
+
+type ItemRow = {
+  id: string;
+  lesson_id: string;
+  sort_order: number;
   type: "video" | "material";
   title: string;
   description: string;
@@ -49,8 +64,8 @@ type LessonRow = {
   material_format: "image" | "pdf" | null;
 };
 
-function mapLesson(row: LessonRow): CourseContentDto {
-  const item: CourseContentDto = {
+function mapItem(row: ItemRow): LessonItemDto {
+  const item: LessonItemDto = {
     id: row.id,
     title: row.title,
     type: row.type,
@@ -73,7 +88,39 @@ function mapLesson(row: LessonRow): CourseContentDto {
   return item;
 }
 
-function mapCourse(row: CourseRow, lessons: LessonRow[] = []): CourseDto {
+function mapLessons(lessonRows: LessonRow[], itemRows: ItemRow[]): CourseLessonDto[] {
+  const itemsByLesson = new Map<string, ItemRow[]>();
+
+  for (const row of itemRows) {
+    const list = itemsByLesson.get(row.lesson_id) ?? [];
+    list.push(row);
+    itemsByLesson.set(row.lesson_id, list);
+  }
+
+  return lessonRows.map((lesson) => {
+    const items = (itemsByLesson.get(lesson.id) ?? [])
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(mapItem);
+
+    return {
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description,
+      items,
+    };
+  });
+}
+
+function mapCourse(
+  row: CourseRow,
+  lessonRows: LessonRow[] = [],
+  itemRows: ItemRow[] = [],
+): CourseDto {
+  const lessons = mapLessons(
+    [...lessonRows].sort((a, b) => a.sort_order - b.sort_order),
+    itemRows,
+  );
+
   return {
     id: row.id,
     title: row.title,
@@ -84,8 +131,33 @@ function mapCourse(row: CourseRow, lessons: LessonRow[] = []): CourseDto {
     lessonCount: row.lesson_count,
     level: row.level,
     objectives: row.objectives ?? [],
-    content: lessons.map(mapLesson),
+    lessons,
   };
+}
+
+async function fetchLessonItemsForCourse(
+  supabase: NonNullable<ReturnType<typeof createAdminClient>>,
+  courseId: string,
+  lessonIds: string[],
+): Promise<ItemRow[]> {
+  if (lessonIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("lesson_items")
+    .select(
+      "id, lesson_id, sort_order, type, title, description, duration, video_url, material_url, material_format",
+    )
+    .in("lesson_id", lessonIds)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("fetch lesson items failed:", error.message);
+    return [];
+  }
+
+  return (data ?? []) as ItemRow[];
 }
 
 export async function fetchPublishedCourses(): Promise<CourseDto[] | null> {
@@ -110,9 +182,7 @@ export async function fetchPublishedCourses(): Promise<CourseDto[] | null> {
   return (data as CourseRow[]).map((row) => mapCourse(row));
 }
 
-export async function fetchCourseById(
-  courseId: string,
-): Promise<CourseDto | null> {
+export async function fetchCourseById(courseId: string): Promise<CourseDto | null> {
   const supabase = createAdminClient();
   if (!supabase) {
     return null;
@@ -134,9 +204,7 @@ export async function fetchCourseById(
 
   const { data: lessons, error: lessonsError } = await supabase
     .from("course_lessons")
-    .select(
-      "id, course_id, sort_order, type, title, description, duration, video_url, material_url, material_format",
-    )
+    .select("id, course_id, sort_order, title, description")
     .eq("course_id", courseId)
     .order("sort_order", { ascending: true });
 
@@ -145,5 +213,41 @@ export async function fetchCourseById(
     return null;
   }
 
-  return mapCourse(course as CourseRow, (lessons ?? []) as LessonRow[]);
+  const lessonRows = (lessons ?? []) as LessonRow[];
+  const itemRows = await fetchLessonItemsForCourse(
+    supabase,
+    courseId,
+    lessonRows.map((l) => l.id),
+  );
+
+  return mapCourse(course as CourseRow, lessonRows, itemRows);
+}
+
+export async function fetchCourseLessonsWithItems(
+  courseId: string,
+): Promise<{ lessons: LessonRow[]; items: ItemRow[] } | null> {
+  const supabase = createAdminClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const { data: lessons, error: lessonsError } = await supabase
+    .from("course_lessons")
+    .select("id, course_id, sort_order, title, description")
+    .eq("course_id", courseId)
+    .order("sort_order", { ascending: true });
+
+  if (lessonsError) {
+    console.error("fetch lessons failed:", lessonsError.message);
+    return null;
+  }
+
+  const lessonRows = (lessons ?? []) as LessonRow[];
+  const itemRows = await fetchLessonItemsForCourse(
+    supabase,
+    courseId,
+    lessonRows.map((l) => l.id),
+  );
+
+  return { lessons: lessonRows, items: itemRows };
 }

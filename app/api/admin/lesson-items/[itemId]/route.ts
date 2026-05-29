@@ -1,19 +1,19 @@
 import { corsHeaders, jsonResponse } from "@/lib/api-cors";
 import {
-  deleteLessonContainer,
-  updateLessonContainer,
-  type LessonContainerInput,
+  deleteLessonItem,
+  updateLessonItem,
+  type LessonItemInput,
 } from "@/lib/courses-admin";
 
-type RouteContext = { params: Promise<{ lessonId: string }> };
+type RouteContext = { params: Promise<{ itemId: string }> };
 
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { lessonId } = await context.params;
-  let body: Partial<LessonContainerInput>;
+  const { itemId } = await context.params;
+  let body: Partial<LessonItemInput>;
   try {
     body = await request.json();
   } catch {
@@ -25,14 +25,21 @@ export async function PATCH(request: Request, context: RouteContext) {
     return jsonResponse({ error: "title is required." }, 400);
   }
 
-  const input: LessonContainerInput = {
-    id: lessonId,
+  const type = body.type === "material" ? "material" : "video";
+  const input: LessonItemInput = {
+    id: itemId,
     sort_order: typeof body.sort_order === "number" ? body.sort_order : 0,
+    type,
     title,
     description: body.description?.trim() || "",
+    duration: body.duration ?? null,
+    video_url: type === "video" ? body.video_url ?? null : null,
+    material_url: type === "material" ? body.material_url ?? null : null,
+    material_format:
+      type === "material" ? (body.material_format === "pdf" ? "pdf" : "image") : null,
   };
 
-  const result = await updateLessonContainer(lessonId, input);
+  const result = await updateLessonItem(itemId, input);
   if (result.error) {
     return jsonResponse({ error: result.error }, 500);
   }
@@ -41,8 +48,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { lessonId } = await context.params;
-  const result = await deleteLessonContainer(lessonId);
+  const { itemId } = await context.params;
+  const result = await deleteLessonItem(itemId);
   if (result.error) {
     return jsonResponse({ error: result.error }, 500);
   }

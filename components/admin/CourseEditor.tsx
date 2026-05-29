@@ -355,7 +355,7 @@ export function CourseEditor({ mode, courseId, initial }: CourseEditorProps) {
       </section>
 
       {mode === "edit" && courseId && initial ? (
-        <LessonManager courseId={courseId} lessons={initial.content} />
+        <LessonManager courseId={courseId} lessons={initial.lessons} />
       ) : null}
     </div>
   );

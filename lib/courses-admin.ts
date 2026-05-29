@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-admin";
-import type { CourseContentDto, CourseDto } from "@/lib/courses";
+import type { CourseDto, CourseLessonDto } from "@/lib/courses";
+import { fetchCourseLessonsWithItems } from "@/lib/courses";
 
 export type AdminCourseRow = {
   id: string;
@@ -15,7 +16,14 @@ export type AdminCourseRow = {
   sort_order: number;
 };
 
-export type LessonInput = {
+export type LessonContainerInput = {
+  id: string;
+  sort_order: number;
+  title: string;
+  description: string;
+};
+
+export type LessonItemInput = {
   id: string;
   sort_order: number;
   type: "video" | "material";
@@ -111,28 +119,30 @@ export async function fetchCourseAdminFull(
     return null;
   }
 
-  const { data: lessons } = await supabase
-    .from("course_lessons")
-    .select(
-      "id, course_id, sort_order, type, title, description, duration, video_url, material_url, material_format",
-    )
-    .eq("course_id", courseId)
-    .order("sort_order", { ascending: true });
-
+  const nested = await fetchCourseLessonsWithItems(courseId);
   const row = course as AdminCourseRow;
-  const content: CourseContentDto[] = (lessons ?? []).map((lesson) => {
-    const item: CourseContentDto = {
-      id: lesson.id,
-      title: lesson.title,
-      type: lesson.type,
-      description: lesson.description,
-    };
-    if (lesson.duration) item.duration = lesson.duration;
-    if (lesson.video_url) item.videoUrl = lesson.video_url;
-    if (lesson.material_url) item.materialUrl = lesson.material_url;
-    if (lesson.material_format) item.materialFormat = lesson.material_format;
-    return item;
-  });
+
+  const lessons: CourseLessonDto[] = (nested?.lessons ?? []).map((lesson) => ({
+    id: lesson.id,
+    title: lesson.title,
+    description: lesson.description,
+    items: (nested?.items ?? [])
+      .filter((item) => item.lesson_id === lesson.id)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((item) => {
+        const dto = {
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          description: item.description,
+        } as CourseLessonDto["items"][number];
+        if (item.duration) dto.duration = item.duration;
+        if (item.video_url) dto.videoUrl = item.video_url;
+        if (item.material_url) dto.materialUrl = item.material_url;
+        if (item.material_format) dto.materialFormat = item.material_format;
+        return dto;
+      }),
+  }));
 
   return {
     id: row.id,
@@ -144,7 +154,7 @@ export async function fetchCourseAdminFull(
     lessonCount: row.lesson_count,
     level: row.level,
     objectives: row.objectives ?? [],
-    content,
+    lessons,
     isPublished: row.is_published,
     sortOrder: row.sort_order,
   };
@@ -219,7 +229,7 @@ export async function deleteCourse(courseId: string) {
   return { error: error?.message ?? null };
 }
 
-export async function createLesson(courseId: string, input: LessonInput) {
+export async function createLessonContainer(courseId: string, input: LessonContainerInput) {
   const supabase = getClient();
   if (!supabase) {
     return { error: "Supabase not configured." };
@@ -229,13 +239,8 @@ export async function createLesson(courseId: string, input: LessonInput) {
     id: input.id,
     course_id: courseId,
     sort_order: input.sort_order,
-    type: input.type,
     title: input.title,
     description: input.description,
-    duration: input.duration ?? null,
-    video_url: input.video_url ?? null,
-    material_url: input.material_url ?? null,
-    material_format: input.material_format ?? null,
   });
 
   if (error) {
@@ -246,7 +251,7 @@ export async function createLesson(courseId: string, input: LessonInput) {
   return { error: null };
 }
 
-export async function updateLesson(lessonId: string, input: LessonInput) {
+export async function updateLessonContainer(lessonId: string, input: LessonContainerInput) {
   const supabase = getClient();
   if (!supabase) {
     return { error: "Supabase not configured." };
@@ -262,13 +267,8 @@ export async function updateLesson(lessonId: string, input: LessonInput) {
     .from("course_lessons")
     .update({
       sort_order: input.sort_order,
-      type: input.type,
       title: input.title,
       description: input.description,
-      duration: input.duration ?? null,
-      video_url: input.video_url ?? null,
-      material_url: input.material_url ?? null,
-      material_format: input.material_format ?? null,
     })
     .eq("id", lessonId);
 
@@ -283,7 +283,7 @@ export async function updateLesson(lessonId: string, input: LessonInput) {
   return { error: null };
 }
 
-export async function deleteLesson(lessonId: string) {
+export async function deleteLessonContainer(lessonId: string) {
   const supabase = getClient();
   if (!supabase) {
     return { error: "Supabase not configured." };
@@ -295,10 +295,7 @@ export async function deleteLesson(lessonId: string) {
     .eq("id", lessonId)
     .maybeSingle();
 
-  const { error } = await supabase
-    .from("course_lessons")
-    .delete()
-    .eq("id", lessonId);
+  const { error } = await supabase.from("course_lessons").delete().eq("id", lessonId);
 
   if (error) {
     return { error: error.message };
@@ -306,6 +303,74 @@ export async function deleteLesson(lessonId: string) {
 
   if (existing?.course_id) {
     await recalculateLessonCount(existing.course_id);
+  }
+
+  return { error: null };
+}
+
+export async function createLessonItem(lessonId: string, input: LessonItemInput) {
+  const supabase = getClient();
+  if (!supabase) {
+    return { error: "Supabase not configured." };
+  }
+
+  const { error } = await supabase.from("lesson_items").insert({
+    id: input.id,
+    lesson_id: lessonId,
+    sort_order: input.sort_order,
+    type: input.type,
+    title: input.title,
+    description: input.description,
+    duration: input.duration ?? null,
+    video_url: input.video_url ?? null,
+    material_url: input.material_url ?? null,
+    material_format: input.material_format ?? null,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { error: null };
+}
+
+export async function updateLessonItem(itemId: string, input: LessonItemInput) {
+  const supabase = getClient();
+  if (!supabase) {
+    return { error: "Supabase not configured." };
+  }
+
+  const { error } = await supabase
+    .from("lesson_items")
+    .update({
+      sort_order: input.sort_order,
+      type: input.type,
+      title: input.title,
+      description: input.description,
+      duration: input.duration ?? null,
+      video_url: input.video_url ?? null,
+      material_url: input.material_url ?? null,
+      material_format: input.material_format ?? null,
+    })
+    .eq("id", itemId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { error: null };
+}
+
+export async function deleteLessonItem(itemId: string) {
+  const supabase = getClient();
+  if (!supabase) {
+    return { error: "Supabase not configured." };
+  }
+
+  const { error } = await supabase.from("lesson_items").delete().eq("id", itemId);
+
+  if (error) {
+    return { error: error.message };
   }
 
   return { error: null };

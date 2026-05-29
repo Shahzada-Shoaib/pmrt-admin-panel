@@ -1,5 +1,9 @@
 import { corsHeaders, jsonResponse } from "@/lib/api-cors";
-import { createLesson, slugifyTitle, type LessonInput } from "@/lib/courses-admin";
+import {
+  createLessonContainer,
+  slugifyTitle,
+  type LessonContainerInput,
+} from "@/lib/courses-admin";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -9,7 +13,7 @@ export async function OPTIONS() {
 
 export async function POST(request: Request, context: RouteContext) {
   const { id: courseId } = await context.params;
-  let body: Partial<LessonInput>;
+  let body: Partial<LessonContainerInput>;
   try {
     body = await request.json();
   } catch {
@@ -21,21 +25,14 @@ export async function POST(request: Request, context: RouteContext) {
     return jsonResponse({ error: "title is required." }, 400);
   }
 
-  const type = body.type === "material" ? "material" : "video";
-  const input: LessonInput = {
+  const input: LessonContainerInput = {
     id: body.id?.trim() || `${slugifyTitle(title)}-${Date.now()}`,
     sort_order: typeof body.sort_order === "number" ? body.sort_order : 0,
-    type,
     title,
     description: body.description?.trim() || "",
-    duration: body.duration ?? null,
-    video_url: type === "video" ? body.video_url ?? null : null,
-    material_url: type === "material" ? body.material_url ?? null : null,
-    material_format:
-      type === "material" ? (body.material_format === "pdf" ? "pdf" : "image") : null,
   };
 
-  const result = await createLesson(courseId, input);
+  const result = await createLessonContainer(courseId, input);
   if (result.error) {
     return jsonResponse({ error: result.error }, 500);
   }
