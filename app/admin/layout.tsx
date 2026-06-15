@@ -1,5 +1,7 @@
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "PMRT Institute Admin",
   description: "Manage courses for the PMRT mobile app",
