@@ -37,6 +37,7 @@ function emptyItem(sortOrder: number): ItemFormState {
     video_url: "",
     material_url: "",
     material_format: "pdf",
+    is_preview: false,
   };
 }
 
@@ -183,6 +184,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       video_url: item.videoUrl ?? "",
       material_url: item.materialUrl ?? "",
       material_format: item.materialFormat === "image" ? "image" : "pdf",
+      is_preview: item.isPreview ?? false,
     });
     setItemModal("edit");
     setError(null);
@@ -209,6 +211,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       video_url: itemForm.type === "video" ? itemForm.video_url || null : null,
       material_url: itemForm.type === "material" ? itemForm.material_url || null : null,
       material_format: itemForm.type === "material" ? itemForm.material_format : null,
+      is_preview: itemForm.is_preview,
     };
 
     try {
@@ -399,6 +402,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
                               {item.type === "video" && item.duration
                                 ? ` · ${item.duration}`
                                 : ""}
+                              {item.isPreview ? " · Preview" : ""}
                             </p>
                           </div>
                           <div className="flex gap-2">

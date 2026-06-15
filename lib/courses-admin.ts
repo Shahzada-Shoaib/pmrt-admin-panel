@@ -33,6 +33,7 @@ export type LessonItemInput = {
   video_url?: string | null;
   material_url?: string | null;
   material_format?: "image" | "pdf" | null;
+  is_preview?: boolean;
 };
 
 export type CourseInput = {
@@ -140,6 +141,7 @@ export async function fetchCourseAdminFull(
         if (item.video_url) dto.videoUrl = item.video_url;
         if (item.material_url) dto.materialUrl = item.material_url;
         if (item.material_format) dto.materialFormat = item.material_format;
+        dto.isPreview = item.is_preview ?? false;
         return dto;
       }),
   }));
@@ -326,6 +328,7 @@ export async function createLessonItem(lessonId: string, input: LessonItemInput)
     video_url: input.video_url ?? null,
     material_url: input.material_url ?? null,
     material_format: input.material_format ?? null,
+    is_preview: input.is_preview ?? false,
   });
 
   if (error) {
@@ -352,6 +355,7 @@ export async function updateLessonItem(itemId: string, input: LessonItemInput) {
       video_url: input.video_url ?? null,
       material_url: input.material_url ?? null,
       material_format: input.material_format ?? null,
+      is_preview: input.is_preview ?? false,
     })
     .eq("id", itemId);
 

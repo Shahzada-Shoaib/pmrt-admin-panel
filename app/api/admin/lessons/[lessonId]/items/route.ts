@@ -37,6 +37,7 @@ export async function POST(request: Request, context: RouteContext) {
     material_url: type === "material" ? body.material_url ?? null : null,
     material_format:
       type === "material" ? (body.material_format === "pdf" ? "pdf" : "image") : null,
+    is_preview: body.is_preview === true,
   };
 
   const result = await createLessonItem(lessonId, input);

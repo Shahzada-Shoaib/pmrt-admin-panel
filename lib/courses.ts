@@ -1,4 +1,5 @@
 import { getProfileIdByFirebaseUid, getUnlockedCourseIdsForProfile } from "@/lib/course-access";
+import { applyLockedCourseMediaPolicy } from "@/lib/lesson-item-access";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 export type LessonItemDto = {
@@ -10,6 +11,7 @@ export type LessonItemDto = {
   videoUrl?: string;
   materialUrl?: string;
   materialFormat?: "image" | "pdf";
+  isPreview?: boolean;
 };
 
 export type CourseLessonDto = {
@@ -32,31 +34,6 @@ export type CourseDto = {
   lessons: CourseLessonDto[];
   isUnlocked: boolean;
 };
-
-export function stripMediaUrls(course: CourseDto): CourseDto {
-  return {
-    ...course,
-    isUnlocked: false,
-    lessons: course.lessons.map((lesson) => ({
-      ...lesson,
-      items: lesson.items.map((item) => {
-        const stripped: LessonItemDto = {
-          id: item.id,
-          title: item.title,
-          type: item.type,
-          description: item.description,
-        };
-        if (item.duration) {
-          stripped.duration = item.duration;
-        }
-        if (item.materialFormat) {
-          stripped.materialFormat = item.materialFormat;
-        }
-        return stripped;
-      }),
-    })),
-  };
-}
 
 type CourseRow = {
   id: string;
@@ -89,6 +66,7 @@ type ItemRow = {
   video_url: string | null;
   material_url: string | null;
   material_format: "image" | "pdf" | null;
+  is_preview: boolean;
 };
 
 function mapItem(row: ItemRow): LessonItemDto {
@@ -97,6 +75,7 @@ function mapItem(row: ItemRow): LessonItemDto {
     title: row.title,
     type: row.type,
     description: row.description,
+    isPreview: row.is_preview ?? false,
   };
 
   if (row.duration) {
@@ -176,7 +155,7 @@ async function fetchLessonItemsForCourse(
   const { data, error } = await supabase
     .from("lesson_items")
     .select(
-      "id, lesson_id, sort_order, type, title, description, duration, video_url, material_url, material_format",
+      "id, lesson_id, sort_order, type, title, description, duration, video_url, material_url, material_format, is_preview",
     )
     .in("lesson_id", lessonIds)
     .order("sort_order", { ascending: true });
@@ -274,7 +253,7 @@ export async function fetchCourseById(
   }
 
   const full = mapCourse(course as CourseRow, lessonRows, itemRows, isUnlocked);
-  return isUnlocked ? full : stripMediaUrls(full);
+  return applyLockedCourseMediaPolicy(full);
 }
 
 export async function fetchCourseLessonsWithItems(

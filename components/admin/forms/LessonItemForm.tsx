@@ -10,6 +10,7 @@ export type ItemFormState = {
   video_url: string;
   material_url: string;
   material_format: "image" | "pdf";
+  is_preview: boolean;
 };
 
 type LessonItemFormProps = {
@@ -70,6 +71,22 @@ export function LessonItemForm({
             />
           </FormField>
         </div>
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] bg-slate-50/80 px-4 py-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-[var(--border)]"
+            checked={value.is_preview}
+            onChange={(e) => onChange({ ...value, is_preview: e.target.checked })}
+          />
+          <span>
+            <span className="block text-sm font-semibold text-[var(--foreground)]">
+              Free preview
+            </span>
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              Available without full course access. Use for sample videos or materials.
+            </span>
+          </span>
+        </label>
       </div>
 
       <div>
