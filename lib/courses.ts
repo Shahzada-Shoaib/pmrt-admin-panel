@@ -18,6 +18,7 @@ export type CourseLessonDto = {
   id: string;
   title: string;
   description: string;
+  isPreview?: boolean;
   items: LessonItemDto[];
 };
 
@@ -53,6 +54,7 @@ type LessonRow = {
   sort_order: number;
   title: string;
   description: string;
+  is_preview: boolean;
 };
 
 type ItemRow = {
@@ -112,6 +114,7 @@ function mapLessons(lessonRows: LessonRow[], itemRows: ItemRow[]): CourseLessonD
       id: lesson.id,
       title: lesson.title,
       description: lesson.description,
+      isPreview: lesson.is_preview ?? false,
       items,
     };
   });
@@ -227,7 +230,7 @@ export async function fetchCourseById(
 
   const { data: lessons, error: lessonsError } = await supabase
     .from("course_lessons")
-    .select("id, course_id, sort_order, title, description")
+    .select("id, course_id, sort_order, title, description, is_preview")
     .eq("course_id", courseId)
     .order("sort_order", { ascending: true });
 
@@ -266,7 +269,7 @@ export async function fetchCourseLessonsWithItems(
 
   const { data: lessons, error: lessonsError } = await supabase
     .from("course_lessons")
-    .select("id, course_id, sort_order, title, description")
+    .select("id, course_id, sort_order, title, description, is_preview")
     .eq("course_id", courseId)
     .order("sort_order", { ascending: true });
 

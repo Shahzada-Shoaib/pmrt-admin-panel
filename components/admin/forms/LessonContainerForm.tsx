@@ -5,6 +5,7 @@ export type LessonFormState = {
   sort_order: number;
   title: string;
   description: string;
+  is_preview: boolean;
 };
 
 type LessonContainerFormProps = {
@@ -39,6 +40,22 @@ export function LessonContainerForm({ value, onChange }: LessonContainerFormProp
           placeholder="Short summary for the mobile app"
         />
       </FormField>
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] bg-slate-50/80 px-4 py-3 sm:col-span-2">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 rounded border-[var(--border)]"
+          checked={value.is_preview}
+          onChange={(e) => onChange({ ...value, is_preview: e.target.checked })}
+        />
+        <span>
+          <span className="block text-sm font-semibold text-[var(--foreground)]">
+            Free preview lesson
+          </span>
+          <span className="mt-0.5 block text-xs text-[var(--muted)]">
+            All videos and materials in this lesson are available without full course access.
+          </span>
+        </span>
+      </label>
     </div>
   );
 }

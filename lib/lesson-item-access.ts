@@ -3,9 +3,10 @@ import type { CourseDto, LessonItemDto } from "@/lib/courses";
 /** Preview items stay available when the course is not unlocked for the user. */
 export function isLessonItemAccessible(
   courseUnlocked: boolean,
-  isPreview: boolean,
+  itemPreview: boolean,
+  lessonPreview = false,
 ): boolean {
-  return courseUnlocked || isPreview;
+  return courseUnlocked || itemPreview || lessonPreview;
 }
 
 function stripItemMedia(item: LessonItemDto): LessonItemDto {
@@ -36,12 +37,17 @@ export function applyLockedCourseMediaPolicy(course: CourseDto): CourseDto {
   return {
     ...course,
     isUnlocked: false,
-    lessons: course.lessons.map((lesson) => ({
-      ...lesson,
-      items: lesson.items.map((item) => {
-        const isPreview = item.isPreview ?? false;
-        return isLessonItemAccessible(false, isPreview) ? item : stripItemMedia(item);
-      }),
-    })),
+    lessons: course.lessons.map((lesson) => {
+      const lessonPreview = lesson.isPreview ?? false;
+      return {
+        ...lesson,
+        items: lesson.items.map((item) => {
+          const itemPreview = item.isPreview ?? false;
+          return isLessonItemAccessible(false, itemPreview, lessonPreview)
+            ? item
+            : stripItemMedia(item);
+        }),
+      };
+    }),
   };
 }

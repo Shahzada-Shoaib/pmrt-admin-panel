@@ -21,6 +21,7 @@ export type LessonContainerInput = {
   sort_order: number;
   title: string;
   description: string;
+  is_preview?: boolean;
 };
 
 export type LessonItemInput = {
@@ -127,6 +128,7 @@ export async function fetchCourseAdminFull(
     id: lesson.id,
     title: lesson.title,
     description: lesson.description,
+    isPreview: lesson.is_preview ?? false,
     items: (nested?.items ?? [])
       .filter((item) => item.lesson_id === lesson.id)
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -244,6 +246,7 @@ export async function createLessonContainer(courseId: string, input: LessonConta
     sort_order: input.sort_order,
     title: input.title,
     description: input.description,
+    is_preview: input.is_preview ?? false,
   });
 
   if (error) {
@@ -272,6 +275,7 @@ export async function updateLessonContainer(lessonId: string, input: LessonConta
       sort_order: input.sort_order,
       title: input.title,
       description: input.description,
+      is_preview: input.is_preview ?? false,
     })
     .eq("id", lessonId);
 

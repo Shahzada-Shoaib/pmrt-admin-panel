@@ -23,6 +23,7 @@ function emptyLesson(sortOrder: number): LessonFormState {
     sort_order: sortOrder,
     title: "",
     description: "",
+    is_preview: false,
   };
 }
 
@@ -102,6 +103,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       sort_order: index + 1,
       title: lesson.title,
       description: lesson.description,
+      is_preview: lesson.isPreview ?? false,
     });
     setLessonModal("edit");
     setError(null);
@@ -116,6 +118,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
       sort_order: lessonForm.sort_order,
       title: lessonForm.title,
       description: lessonForm.description,
+      is_preview: lessonForm.is_preview,
     };
 
     try {
@@ -351,6 +354,7 @@ export function LessonManager({ courseId, lessons }: LessonManagerProps) {
                     <p className="text-xs text-[var(--muted)]">
                       {videoCount} video{videoCount === 1 ? "" : "s"} · {materialCount} material
                       {materialCount === 1 ? "" : "s"}
+                      {lesson.isPreview ? " · Preview lesson" : ""}
                     </p>
                     {lesson.description ? (
                       <p className="mt-1 text-xs text-[var(--muted)]">{lesson.description}</p>

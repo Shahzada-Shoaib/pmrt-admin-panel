@@ -30,6 +30,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     sort_order: typeof body.sort_order === "number" ? body.sort_order : 0,
     title,
     description: body.description?.trim() || "",
+    is_preview: body.is_preview === true,
   };
 
   const result = await updateLessonContainer(lessonId, input);
