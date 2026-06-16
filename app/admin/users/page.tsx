@@ -28,6 +28,7 @@ export default async function AdminUsersPage() {
               <thead className="border-b border-[var(--border)] bg-slate-50 text-[var(--muted)]">
                 <tr>
                   <th className="px-6 py-4 font-semibold">Name</th>
+                  <th className="px-6 py-4 font-semibold">Phone</th>
                   <th className="px-6 py-4 font-semibold">Email</th>
                   <th className="px-6 py-4 font-semibold">Joined</th>
                   <th className="px-6 py-4 font-semibold" />
@@ -42,6 +43,7 @@ export default async function AdminUsersPage() {
                     <td className="px-6 py-4 font-semibold">
                       {user.full_name || "—"}
                     </td>
+                    <td className="px-6 py-4 text-[var(--muted)]">{user.phone || "—"}</td>
                     <td className="px-6 py-4 text-[var(--muted)]">{user.email || "—"}</td>
                     <td className="px-6 py-4 text-[var(--muted)]">
                       {new Date(user.created_at).toLocaleDateString()}

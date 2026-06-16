@@ -6,6 +6,7 @@ export type AdminProfileRow = {
   firebase_uid: string;
   email: string | null;
   full_name: string | null;
+  phone: string | null;
   avatar_url: string | null;
   created_at: string;
 };
@@ -30,7 +31,7 @@ export async function fetchAllProfilesAdmin(): Promise<AdminProfileRow[] | null>
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, firebase_uid, email, full_name, avatar_url, created_at")
+    .select("id, firebase_uid, email, full_name, phone, avatar_url, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -51,7 +52,7 @@ export async function fetchProfileByIdAdmin(
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, firebase_uid, email, full_name, avatar_url, created_at")
+    .select("id, firebase_uid, email, full_name, phone, avatar_url, created_at")
     .eq("id", profileId)
     .maybeSingle();
 
