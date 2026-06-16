@@ -59,24 +59,46 @@ export async function POST(request: Request) {
   // }
 
   const now = new Date().toISOString();
-  const { error } = await supabase.from("profiles").upsert(
-    {
+
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("firebase_uid", firebaseUid)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        email: body.email ?? null,
+        updated_at: now,
+      })
+      .eq("firebase_uid", firebaseUid);
+
+    if (error) {
+      console.error("profile update failed:", error.message);
+      return NextResponse.json(
+        { error: "Could not save profile." },
+        { status: 500, headers: corsHeaders },
+      );
+    }
+  } else {
+    const { error } = await supabase.from("profiles").insert({
       firebase_uid: firebaseUid,
       email: body.email ?? null,
       full_name: body.full_name ?? null,
       avatar_url: body.avatar_url ?? null,
       role: "student",
       updated_at: now,
-    },
-    { onConflict: "firebase_uid" },
-  );
+    });
 
-  if (error) {
-    console.error("profile upsert failed:", error.message);
-    return NextResponse.json(
-      { error: "Could not save profile." },
-      { status: 500, headers: corsHeaders },
-    );
+    if (error) {
+      console.error("profile insert failed:", error.message);
+      return NextResponse.json(
+        { error: "Could not save profile." },
+        { status: 500, headers: corsHeaders },
+      );
+    }
   }
 
   return NextResponse.json({ ok: true }, { headers: corsHeaders });
