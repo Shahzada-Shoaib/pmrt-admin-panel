@@ -41,10 +41,12 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 1. Run `supabase/profiles.sql` in the Supabase SQL Editor.
 2. Run `supabase/courses.sql` for All Courses in the mobile app.
 3. Run `supabase/storage.sql` for image/video uploads in the admin UI.
-3. Copy `.env.example` → add `SUPABASE_SERVICE_ROLE_KEY` on Vercel (and `.env.local` for local dev).
-4. Redeploy. Expo uses:
+4. Run `supabase/app-banners.sql` for login and home banners.
+5. Copy `.env.example` → add `SUPABASE_SERVICE_ROLE_KEY` on Vercel (and `.env.local` for local dev).
+6. Redeploy. Expo uses:
    - `POST /api/sync-profile` after login
    - `GET /api/courses` and `GET /api/courses/:id` for course screens
+   - `GET /api/app-banners` for login and home banners
 
 ## Admin UI
 
@@ -52,4 +54,5 @@ Open `/admin` after `npm run dev`:
 
 - **Dashboard** — overview
 - **Courses** — list, create, edit, lessons (video/material URLs)
+- **Banners** — login carousel and home banner images
 - Toggle **Published** so the mobile app shows a course

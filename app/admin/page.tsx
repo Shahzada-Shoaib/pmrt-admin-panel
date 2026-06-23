@@ -79,6 +79,12 @@ export default async function AdminDashboardPage() {
               Manage courses
             </Link>
             <Link
+              href="/admin/banners"
+              className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-slate-50"
+            >
+              Banners
+            </Link>
+            <Link
               href="/admin/free-videos"
               className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-slate-50"
             >
